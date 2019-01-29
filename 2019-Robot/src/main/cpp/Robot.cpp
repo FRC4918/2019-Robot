@@ -1,29 +1,46 @@
-/*----------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
-/* Open Source Software - may be modified and shared by FRC teams. The code   */
-/* must be accompanied by the FIRST BSD license file in the root directory of */
-/* the project.                                                               */
-/*----------------------------------------------------------------------------*/
-
-#include <frc/Joystick.h>
-#include <frc/PWMVictorSPX.h>
-#include <frc/TimedRobot.h>
-
-/**
- * This sample program shows how to control a motor using a joystick. In the
- * operator control part of the program, the joystick is read and the value is
- * written to the motor.
- *
- * Joystick analog values range from -1 to 1 and speed controller inputs as
- * range from -1 to 1 making it easy to work together.
+/*
+ Our 2019 Robot code. Written by Max Morningstar and [Other contributors here] with guidance from Jeff Gibbons
  */
+
+
+#include <frc/WPILib.h>
+#include "ctre/Phoenix.h"
+#include <iostream>
+#include <networktables/NetworkTable.h>
+#include <networktables/NetworkTableEntry.h>
+#include <networktables/NetworkTableInstance.h>
+
+using std::cout;
+using std::endl;
+
 class Robot : public frc::TimedRobot {
  public:
-  void TeleopPeriodic() override { m_motor.Set(m_stick.GetY()); }
-
+  void AutonomousInit() override {
+      }
+  void AutonomousPeriodic() override {
+      }
+  void TeleopInit() override {
+      }
+  void TeleopPeriodic() override { 
+      }
  private:
-  frc::Joystick m_stick{0};
-  frc::PWMVictorSPX m_motor{0};
+    frc::Joystick m_stick{0};
+    // jagorigwas: frc::Spark m_motor{0};
+    WPI_TalonSRX m_motorRSMaster{1}; // Right side drive motor
+    WPI_TalonSRX m_motorLSMaster{2}; // Left  side drive motor      
+    WPI_TalonSRX m_motorArmMaster{7}; // Arm motor
+    WPI_VictorSPX m_motorRSSlave1{3};
+    WPI_VictorSPX m_motorLSSlave1{4};
+    WPI_VictorSPX m_motorLSSlave2{5};
+    WPI_VictorSPX m_motorRSSlave2{6};
+    int iAutoCount;
+    frc::DifferentialDrive m_drive{ m_motorLSMaster, m_motorRSMaster };
+    frc::Compressor m_compressor{0};
+    frc::DoubleSolenoid m_doublesolenoid{0,1};
+    frc::AnalogInput DistSensor1{0};
+    frc::Spark IntakeMotors{0};
+    std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
+    frc::Joystick m_stick{0};
 };
 
 #ifndef RUNNING_FRC_TESTS
