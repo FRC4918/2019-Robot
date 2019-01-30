@@ -16,16 +16,26 @@ using std::endl;
 class Robot : public frc::TimedRobot {
  public:
   void AutonomousInit() override {
-      }
+  }
   void AutonomousPeriodic() override {
-      }
+  }
   void TeleopInit() override {
-      }
+    m_motorLSSlave1.Follow(m_motorLSMaster);
+    m_motorLSSlave2.Follow(m_motorLSMaster);
+    m_motorRSSlave1.Follow(m_motorRSMaster);
+    m_motorRSSlave2.Follow(m_motorRSMaster);
+    m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+  }
   void TeleopPeriodic() override { 
-      }
+    if ( m_stick.GetTrigger() ) {
+        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+    } else {
+        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+    }
+  }
  private:
     frc::Joystick m_stick{0};
-    // jagorigwas: frc::Spark m_motor{0};
+    frc::XboxController m_xbox{1};
     WPI_TalonSRX m_motorRSMaster{1}; // Right side drive motor
     WPI_TalonSRX m_motorLSMaster{2}; // Left  side drive motor      
     WPI_TalonSRX m_motorArmMaster{7}; // Arm motor
@@ -40,7 +50,6 @@ class Robot : public frc::TimedRobot {
     frc::AnalogInput DistSensor1{0};
     frc::Spark IntakeMotors{0};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
-    frc::Joystick m_stick{0};
 };
 
 #ifndef RUNNING_FRC_TESTS
