@@ -12,9 +12,22 @@
 
 using std::cout;
 using std::endl;
-
+#undef DRIVEMETHODJOYSTICK
 class Robot : public frc::TimedRobot {
  public:
+  double GetSimY() {
+      double TriggerAxisLeft =  m_xbox.GetTriggerAxis (frc::GenericHID::kLeftHand);
+      double TriggerAxisRight = m_xbox.GetTriggerAxis (frc::GenericHID::kRightHand);
+      double returnValue = 0.0;
+    if ( TriggerAxisLeft > 0.1) {
+        returnValue = -TriggerAxisLeft;
+    }
+    else  {
+        returnValue = TriggerAxisRight;
+    }
+    return returnValue;
+  }
+
   void AutonomousInit() override {
   }
   void AutonomousPeriodic() override {
@@ -27,11 +40,31 @@ class Robot : public frc::TimedRobot {
     m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward);
   }
   void TeleopPeriodic() override { 
+#ifdef DRIVEMETHODJOYSTICK
     if ( m_stick.GetTrigger() ) {
         m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
     } else {
         m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
     }
+    if ( m_stick.GetZ() < 0 ) {
+        m_drive.CurvatureDrive( m_stick.GetY(),
+        powl( fabs(m_stick.GetZ()), m_stick.GetThrottle()+2.0 ),
+        m_stick.GetTop() );
+    } else {
+         m_drive.CurvatureDrive( m_stick.GetY(),
+            -powl( fabs(m_stick.GetZ()), m_stick.GetThrottle()+2.0 ),
+            m_stick.GetTop() );
+    }  
+#else  
+    if ( m_xbox.GetBumper(frc::GenericHID::kLeftHand) ) {
+        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+    } else {
+        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+    } 
+    m_drive.CurvatureDrive( GetSimY(),
+                            m_xbox.GetX(frc::GenericHID::kLeftHand),
+                            m_xbox.GetBumperPressed(frc::GenericHID::kRightHand) );
+#endif                          
   }
  private:
     frc::Joystick m_stick{0};
