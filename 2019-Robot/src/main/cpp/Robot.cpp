@@ -12,7 +12,7 @@
 
 using std::cout;
 using std::endl;
-#undef DRIVEMETHODJOYSTICK
+#define DRIVEMETHODJOYSTICK
 class Robot : public frc::TimedRobot {
  public:
   double GetSimY() {
@@ -37,14 +37,54 @@ class Robot : public frc::TimedRobot {
     m_motorLSSlave2.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
     m_motorRSSlave2.Follow(m_motorRSMaster);
-    m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+
   }
-  void TeleopPeriodic() override { 
+  void TeleopPeriodic() override {
+    if ( m_xbox.GetYButtonPressed() ) {
+        wantHatchOpen = !wantHatchOpen;
+    }
+    if ( hatchOpen ) {
+        if ( !wantHatchOpen ) {
+            hatchOpen = false;
+            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // hatch close
+        }
+    } else {
+        if ( wantHatchOpen ) {
+            hatchOpen = true;
+            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hatch open
+        }
+    }
+    if ( m_xbox.GetBButtonPressed() ) {
+        wantCargoOpen = !wantCargoOpen;
+    }
+    if ( cargoOpen ) {
+        if ( !wantCargoOpen ) {
+            cargoOpen = false;
+            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // cargo arms close
+        }
+    } else {
+        if ( wantCargoOpen ) {
+            cargoOpen = true;
+            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // cargo arms open
+        }
+    }
+    if ( m_xbox.GetAButton() ) { 
+        m_motorIntake.Set(ControlMode::PercentOutput, 0.2);
+    }
+    else if ( m_xbox.GetXButton() ) { 
+        m_motorIntake.Set(ControlMode::PercentOutput, -0.2);
+    }
+    else {
+        m_motorIntake.Set(ControlMode::PercentOutput, 0.0);
+    }
 #ifdef DRIVEMETHODJOYSTICK
     if ( m_stick.GetTrigger() ) {
-        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
     } else {
-        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
     }
     if ( m_stick.GetZ() < 0 ) {
         m_drive.CurvatureDrive( m_stick.GetY(),
@@ -57,9 +97,9 @@ class Robot : public frc::TimedRobot {
     }  
 #else  
     if ( m_xbox.GetBumper(frc::GenericHID::kLeftHand) ) {
-        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
     } else {
-        m_doublesolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
     } 
     m_drive.CurvatureDrive( GetSimY(),
                             m_xbox.GetX(frc::GenericHID::kLeftHand),
@@ -71,7 +111,7 @@ class Robot : public frc::TimedRobot {
     frc::XboxController m_xbox{1};
     WPI_TalonSRX m_motorRSMaster{1}; // Right side drive motor
     WPI_TalonSRX m_motorLSMaster{2}; // Left  side drive motor      
-    WPI_TalonSRX m_motorArmMaster{7}; // Arm motor
+    WPI_TalonSRX m_motorIntake{7}; // intake motor
     WPI_VictorSPX m_motorRSSlave1{3};
     WPI_VictorSPX m_motorLSSlave1{4};
     WPI_VictorSPX m_motorLSSlave2{5};
@@ -79,10 +119,16 @@ class Robot : public frc::TimedRobot {
     int iAutoCount;
     frc::DifferentialDrive m_drive{ m_motorLSMaster, m_motorRSMaster };
     frc::Compressor m_compressor{0};
-    frc::DoubleSolenoid m_doublesolenoid{0,1};
+    frc::DoubleSolenoid m_shiftingSolenoid{0,1}; //shifters
+    frc::DoubleSolenoid m_hatchSolenoid{2,3}; //grab hatch in/out
+    frc::DoubleSolenoid m_cargoSolenoid{4,5}; //grab cargo open/close
     frc::AnalogInput DistSensor1{0};
     frc::Spark IntakeMotors{0};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
+    bool wantHatchOpen = true;
+    bool hatchOpen = true;
+    bool wantCargoOpen = true;
+    bool cargoOpen = true;
 };
 
 #ifndef RUNNING_FRC_TESTS
