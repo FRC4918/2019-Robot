@@ -46,29 +46,31 @@ class Robot : public frc::TimedRobot {
     if ( m_xbox.GetYButtonPressed() ) {
         wantHatchOpen = !wantHatchOpen;
     }
-    if ( hatchOpen ) {
-        if ( !wantHatchOpen ) {
-            hatchOpen = false;
+    if ( 0 < hatchOpen ) { 
+        hatchOpen++;
+        if ( !wantHatchOpen && ( 50 < cargoOpen ) ) { // If we want the hatch closed AND cargo has been open for 1 second
             m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // hatch close
+            hatchOpen = 0;
         }
     } else {
         if ( wantHatchOpen ) {
-            hatchOpen = true;
             m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hatch open
+            hatchOpen = 1;
         }
     }
     if ( m_xbox.GetBButtonPressed() ) {
         wantCargoOpen = !wantCargoOpen;
     }
-    if ( cargoOpen ) {
-        if ( !wantCargoOpen ) {
-            cargoOpen = false;
+    if ( 0 < cargoOpen ) {
+        cargoOpen++;
+        if ( !wantCargoOpen && ( 50 < hatchOpen ) ) { // If we want cargo closed AND hatch has been open for 1 second
             m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // cargo arms close
+            cargoOpen = 0;
         }
     } else {
         if ( wantCargoOpen ) {
-            cargoOpen = true;
-            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // cargo arms open
+            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // cargo arms open 
+            cargoOpen = 1;
         }
     }
     if ( m_xbox.GetAButton() ) { 
@@ -126,9 +128,9 @@ class Robot : public frc::TimedRobot {
     frc::Spark IntakeMotors{0};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
     bool wantHatchOpen = true;
-    bool hatchOpen = true;
+    int hatchOpen = 1;
     bool wantCargoOpen = true;
-    bool cargoOpen = true;
+    int cargoOpen = 1;
 };
 
 #ifndef RUNNING_FRC_TESTS
