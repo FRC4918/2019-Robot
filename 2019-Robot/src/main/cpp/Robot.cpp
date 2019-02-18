@@ -15,19 +15,9 @@ using std::endl;
 #define DRIVEMETHODJOYSTICK
 class Robot : public frc::TimedRobot {
  public:
-  double GetSimY() {
-      double TriggerAxisLeft =  m_xbox.GetTriggerAxis (frc::GenericHID::kLeftHand);
-      double TriggerAxisRight = m_xbox.GetTriggerAxis (frc::GenericHID::kRightHand);
-      double returnValue = 0.0;
-    if ( TriggerAxisLeft > 0.1) {
-        returnValue = -TriggerAxisLeft;
-    }
-    else  {
-        returnValue = TriggerAxisRight;
-    }
-    return returnValue;
+  void RobotInit() {
+      m_ptoSolenoid.ClearAllPCMStickyFaults();
   }
-
   void AutonomousInit() override {
   }
   void AutonomousPeriodic() override {
@@ -37,54 +27,46 @@ class Robot : public frc::TimedRobot {
     m_motorLSSlave2.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
     m_motorRSSlave2.Follow(m_motorRSMaster);
-    m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
-    m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
-    m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_shiftingSolenoid.Set(true);
+    m_hatchSolenoid.Set(true);
+
 
   }
   void TeleopPeriodic() override {
-    if ( m_xbox.GetYButtonPressed() ) {
+    if ( m_console.GetRawButtonPressed(2) ) {
         wantHatchOpen = !wantHatchOpen;
     }
     if ( hatchOpen ) {
         if ( !wantHatchOpen ) {
             hatchOpen = false;
-            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // hatch close
+            m_hatchSolenoid.Set(true); // hatch close
         }
     } else {
         if ( wantHatchOpen ) {
             hatchOpen = true;
-            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hatch open
+            m_hatchSolenoid.Set(false); // hatch open
         }
     }
-    if ( m_xbox.GetBButtonPressed() ) {
-        wantCargoOpen = !wantCargoOpen;
+     m_elevator.ArcadeDrive(m_console.GetY(), m_console.GetZ()); // Elevator drive code. Gets nonexistant Z-axis instead of X to prevent carraige getting messed up
+    if ( m_console.GetRawButtonPressed(1) ) {
+        wantPTOShift = !wantPTOShift;
     }
-    if ( cargoOpen ) {
-        if ( !wantCargoOpen ) {
-            cargoOpen = false;
-            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // cargo arms close
+    if ( PTOShift ) {
+        if ( !wantPTOShift) {
+            PTOShift = false;
+            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // PTO Disengage
         }
     } else {
-        if ( wantCargoOpen ) {
-            cargoOpen = true;
-            m_cargoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // cargo arms open
+        if ( wantPTOShift ) {
+            PTOShift = true;
+            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // PTO Engage
         }
-    }
-    if ( m_xbox.GetAButton() ) { 
-        m_motorIntake.Set(ControlMode::PercentOutput, 0.2);
-    }
-    else if ( m_xbox.GetXButton() ) { 
-        m_motorIntake.Set(ControlMode::PercentOutput, -0.2);
-    }
-    else {
-        m_motorIntake.Set(ControlMode::PercentOutput, 0.0);
     }
 #ifdef DRIVEMETHODJOYSTICK
     if ( m_stick.GetTrigger() ) {
-        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+        m_shiftingSolenoid.Set(true); // hi gear
     } else {
-        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+        m_shiftingSolenoid.Set(false); // lo gear
     }
     if ( m_stick.GetZ() < 0 ) {
         m_drive.CurvatureDrive( m_stick.GetY(),
@@ -97,38 +79,40 @@ class Robot : public frc::TimedRobot {
     }  
 #else  
     if ( m_xbox.GetBumper(frc::GenericHID::kLeftHand) ) {
-        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
+        m_shiftingSolenoid.Set(true); // hi gear
     } else {
-        m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
+        m_shiftingSolenoid.Set(false); // lo gear
     } 
     m_drive.CurvatureDrive( GetSimY(),
                             m_xbox.GetX(frc::GenericHID::kLeftHand),
                             m_xbox.GetBumperPressed(frc::GenericHID::kRightHand) );
-#endif                          
+#endif    
   }
  private:
     frc::Joystick m_stick{0};
-    frc::XboxController m_xbox{1};
-    WPI_TalonSRX m_motorRSMaster{1}; // Right side drive motor
-    WPI_TalonSRX m_motorLSMaster{2}; // Left  side drive motor      
-    WPI_TalonSRX m_motorIntake{7}; // intake motor
-    WPI_VictorSPX m_motorRSSlave1{3};
-    WPI_VictorSPX m_motorLSSlave1{4};
-    WPI_VictorSPX m_motorLSSlave2{5};
-    WPI_VictorSPX m_motorRSSlave2{6};
+    frc::Joystick m_console{1};
+    WPI_TalonSRX m_motorRSMaster{2}; // Right side drive motor
+    WPI_TalonSRX m_motorLSMaster{13}; // Left  side drive motor   
+    WPI_TalonSRX m_motorRSPTO{0}; // Right side PTO
+    WPI_TalonSRX m_motorLSPTO{15}; // Left  side PTO
+    WPI_VictorSPX m_motorRSSlave1{1};
+    WPI_VictorSPX m_motorLSSlave1{14};
+    WPI_VictorSPX m_motorLSSlave2{12};
+    WPI_VictorSPX m_motorRSSlave2{3};
     int iAutoCount;
     frc::DifferentialDrive m_drive{ m_motorLSMaster, m_motorRSMaster };
+    frc::DifferentialDrive m_elevator{ m_motorLSPTO, m_motorRSPTO };
     frc::Compressor m_compressor{0};
-    frc::DoubleSolenoid m_shiftingSolenoid{0,1}; //shifters
-    frc::DoubleSolenoid m_hatchSolenoid{2,3}; //grab hatch in/out
-    frc::DoubleSolenoid m_cargoSolenoid{4,5}; //grab cargo open/close
+    frc::Solenoid m_shiftingSolenoid{0}; //shifters
+    frc::Solenoid m_hatchSolenoid{1}; //grab hatch in/out
+    frc::DoubleSolenoid m_ptoSolenoid{6,7
+    };
     frc::AnalogInput DistSensor1{0};
-    frc::Spark IntakeMotors{0};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
     bool wantHatchOpen = true;
     bool hatchOpen = true;
-    bool wantCargoOpen = true;
-    bool cargoOpen = true;
+    bool wantPTOShift = true;
+    bool PTOShift = true;
 };
 
 #ifndef RUNNING_FRC_TESTS
