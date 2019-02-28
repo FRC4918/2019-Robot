@@ -82,7 +82,7 @@ class Robot : public frc::TimedRobot {
 
     // May have to add/subtract a constant from limex here, to account
     // for the offset of the camera away from the centerline of the robot.
-      if ( PTOShift ) {
+      if ( endShift ) {
           m_drive.CurvatureDrive( -autoDriveSpeed, 0, 0 );
       } else if ( 0 <= limex )  {
                              // if target to the right, turn towards the right
@@ -110,74 +110,64 @@ class Robot : public frc::TimedRobot {
       std::thread visionThread(VisionThread);
       visionThread.detach();
 
-      m_ptoSolenoid.ClearAllPCMStickyFaults();
       m_motorLSSlave1.Follow(m_motorLSMaster);
-      m_motorLSSlave2.Follow(m_motorLSMaster);
       m_motorRSSlave1.Follow(m_motorRSMaster);
-      m_motorRSSlave2.Follow(m_motorRSMaster);
 
       m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
       m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+      m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+      m_ptodropSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+
 
       m_motorLSMaster.ConfigClosedloopRamp(1.0); // safety ramps on all motors
       m_motorRSMaster.ConfigClosedloopRamp(1.0);
       m_armMotor.ConfigClosedloopRamp(2.0);
       m_motorLSPTO.ConfigClosedloopRamp(4.0);
-      m_motorRSPTO.ConfigClosedloopRamp(4.0);
       
       m_motorLSMaster.ConfigOpenloopRamp(1.0);
       m_motorRSMaster.ConfigOpenloopRamp(1.0);
       m_armMotor.ConfigOpenloopRamp(2.0);
       m_motorLSPTO.ConfigOpenloopRamp(4.0);
-      m_motorRSPTO.ConfigOpenloopRamp(4.0);
                   // set all current limits to 40 Amps, after 200 milliseconds
       m_motorLSMaster.ConfigContinuousCurrentLimit( 40, 10 );
       m_motorRSMaster.ConfigContinuousCurrentLimit( 40, 10 );
       m_armMotor.ConfigContinuousCurrentLimit( 40, 10 );
       m_motorLSPTO.ConfigContinuousCurrentLimit( 40, 10 );
-      m_motorRSPTO.ConfigContinuousCurrentLimit( 40, 10 );
               // set all peak current limits to 50 Amps up to 200 milliseconds
       m_motorLSMaster.ConfigPeakCurrentLimit( 50, 10 );
       m_motorRSMaster.ConfigPeakCurrentLimit( 50, 10 );
       m_armMotor.ConfigPeakCurrentLimit( 50, 10 );
       m_motorLSPTO.ConfigPeakCurrentLimit( 50, 10 );
-      m_motorRSPTO.ConfigPeakCurrentLimit( 50, 10 );
 
       m_motorLSMaster.ConfigPeakCurrentDuration( 200, 10 );
       m_motorRSMaster.ConfigPeakCurrentDuration( 200, 10 );
       m_armMotor.ConfigPeakCurrentDuration( 200, 10 );
       m_motorLSPTO.ConfigPeakCurrentDuration( 200, 10 );
-      m_motorRSPTO.ConfigPeakCurrentDuration( 200, 10 );
 
       m_motorLSMaster.EnableCurrentLimit( true );
       m_motorRSMaster.EnableCurrentLimit( true );
       m_armMotor.EnableCurrentLimit( true );
       m_motorLSPTO.EnableCurrentLimit( true );
-      m_motorRSPTO.EnableCurrentLimit( true );
       
       m_motorLSMaster.ConfigNominalOutputForward( 0, 10 );
       m_motorRSMaster.ConfigNominalOutputForward( 0, 10 );
       m_armMotor.ConfigNominalOutputForward( 0, 10 );
       m_motorLSPTO.ConfigNominalOutputForward( 0, 10 );
-      m_motorRSPTO.ConfigNominalOutputForward( 0, 10 );
 
       m_motorLSMaster.ConfigNominalOutputReverse( 0, 10 );
       m_motorRSMaster.ConfigNominalOutputReverse( 0, 10 );
       m_armMotor.ConfigNominalOutputReverse( 0, 10 );
       m_motorLSPTO.ConfigNominalOutputReverse( 0, 10 );
-      m_motorRSPTO.ConfigNominalOutputReverse( 0, 10 );
 
       m_motorLSMaster.ConfigPeakOutputForward( 1, 10 );
       m_motorRSMaster.ConfigPeakOutputForward( 1, 10 );
       m_armMotor.ConfigPeakOutputForward( 1, 10 );
       m_motorLSPTO.ConfigPeakOutputForward( 1, 10 );
-      m_motorRSPTO.ConfigPeakOutputForward( 1, 10 );
 
       m_motorLSMaster.ConfigPeakOutputReverse( -1, 10 );
       m_motorRSMaster.ConfigPeakOutputReverse( -1, 10 );
       m_armMotor.ConfigPeakOutputReverse( -1, 10 );
       m_motorLSPTO.ConfigPeakOutputReverse( -1, 10 );
-      m_motorRSPTO.ConfigPeakOutputReverse( -1, 10 );
   }
   void AutonomousInit() override {
   }
@@ -186,11 +176,11 @@ class Robot : public frc::TimedRobot {
   }
   void TeleopInit() override {
     m_motorLSSlave1.Follow(m_motorLSMaster);
-    m_motorLSSlave2.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
-    m_motorRSSlave2.Follow(m_motorRSMaster);
     m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
     m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    m_ptodropSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
 
 
   }
@@ -205,27 +195,41 @@ class Robot : public frc::TimedRobot {
     if ( hatchOpen ) {
         if ( !wantHatchOpen ) {
             hatchOpen = false;
-            m_hatchSolenoid.Set(true); // hatch close
+            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hatch close
         }
     } else {
         if ( wantHatchOpen ) {
             hatchOpen = true;
-            m_hatchSolenoid.Set(false); // hatch open
+            m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // hatch open
         }
     }
-     m_elevator.ArcadeDrive(m_console.GetY(), m_console.GetZ()); // Elevator drive code. Gets nonexistant Z-axis instead of X to prevent carraige getting messed up
-    if ( m_console.GetRawButtonPressed(1) ) {
-        wantPTOShift = !wantPTOShift;
+    if ( m_console.GetRawButtonPressed(4) ) {
+        wantBrakeEngaged = !wantBrakeEngaged;
     }
-    if ( PTOShift ) {
-        if ( !wantPTOShift) {
-            PTOShift = false;
-            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // PTO Disengage
+    if ( brakeEngaged ) {
+        if ( !wantBrakeEngaged ) {
+            brakeEngaged = false;
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Brake on
         }
     } else {
-        if ( wantPTOShift ) {
-            PTOShift = true;
-            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // PTO Engage
+        if ( wantBrakeEngaged ) {
+            brakeEngaged = true;
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake off
+        }
+    }
+     m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() ); // Elevator drive code
+    if ( m_console.GetRawButtonPressed(1) ) {
+        wantEndShift = !wantEndShift;
+    }
+    if ( endShift ) {
+        if ( !wantEndShift) {
+            endShift = false;
+            m_ptodropSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Reset Wing piston, arm piston, disengage PTO
+        }
+    } else {
+        if ( wantEndShift ) {
+            endShift = true;
+            m_ptodropSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Drop Wings, arms, engage PTO
         }
     }
     if ( m_console.GetRawButton(7) ) {
@@ -234,16 +238,6 @@ class Robot : public frc::TimedRobot {
         m_armMotor.Set(ControlMode::PercentOutput, -0.4 );
     } else {
         m_armMotor.Set(ControlMode::PercentOutput, 0.0 ); 
-    }
-    if ( m_console.GetRawButton(3) ) {
-        wantArmDrop = true;
-    } else {
-        wantArmDrop = false;
-    }
-    if ( wantArmDrop ) {
-        m_armSolenoid.Set(true); // Drop Vacuum Arms
-    } else {
-        m_armSolenoid.Set(false); // Reset Vacuum Arms holder
     }
     if ( m_console.GetRawButton(5) )  {
         m_motorVacuum.Set(ControlMode::PercentOutput, 1.0);
@@ -260,11 +254,11 @@ class Robot : public frc::TimedRobot {
         DriveToTarget();         // then autonomously drive towards the target
     } else {
         if ( m_stick.GetTrigger() ) {
-            m_shiftingSolenoid.Set(true); // hi gear
+            m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // hi gear
         } else {
-            m_shiftingSolenoid.Set(false); // lo gear
+            m_shiftingSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // lo gear
         }
-        if ( PTOShift ) {
+        if ( endShift ) {
             m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
         } else if ( m_stick.GetZ() < 0 ) {
             m_drive.CurvatureDrive( m_stick.GetY(),
@@ -288,33 +282,31 @@ class Robot : public frc::TimedRobot {
 #endif    
   }
  private:
+//Need to add: vacuum limit switch, gyro, simple limit switch x2
     frc::Joystick m_stick{0};
     frc::Joystick m_console{1};
     WPI_TalonSRX m_motorRSMaster{2}; // Right side drive motor
     WPI_TalonSRX m_motorLSMaster{13}; // Left  side drive motor   
-    WPI_TalonSRX m_motorRSPTO{0}; // Right side PTO
     WPI_TalonSRX m_motorLSPTO{15}; // Left  side PTO
-    WPI_TalonSRX m_armMotor{6}; // 4-Bar arm motor
+    WPI_TalonSRX m_armMotor{9}; // 4-Bar arm motor
     WPI_VictorSPX m_motorRSSlave1{1};
     WPI_VictorSPX m_motorLSSlave1{14};
-    WPI_VictorSPX m_motorLSSlave2{12};
-    WPI_VictorSPX m_motorRSSlave2{3};
-    WPI_VictorSPX m_motorVacuum{7};
+    WPI_VictorSPX m_motorVacuum{8};
     int iAutoCount;
     frc::DifferentialDrive m_drive{ m_motorLSMaster, m_motorRSMaster };
-    frc::DifferentialDrive m_elevator{ m_motorLSPTO, m_motorRSPTO };
     frc::Compressor m_compressor{0};
-    frc::Solenoid m_shiftingSolenoid{0}; //shifters
-    frc::Solenoid m_hatchSolenoid{4}; //grab hatch in/out
-    frc::Solenoid m_armSolenoid{1};
-    frc::DoubleSolenoid m_ptoSolenoid{6,7};
+    frc::DoubleSolenoid m_shiftingSolenoid{0,1}; //shifters
+    frc::DoubleSolenoid m_hatchSolenoid{2,3}; //grab hatch in/out
+    frc::DoubleSolenoid m_brakeSolenoid{4,5}; //brake on/off
+    frc::DoubleSolenoid m_ptodropSolenoid{6,7}; //drops the vac arms AND engages PTO
     frc::AnalogInput DistSensor1{0};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
     bool wantHatchOpen = true;
     bool hatchOpen = true;
-    bool wantPTOShift = true;
-    bool PTOShift = true;
-    bool wantArmDrop = false;
+    bool wantEndShift = true;
+    bool endShift = true;
+    bool wantBrakeEngaged = true;
+    bool brakeEngaged = true;
         // limelight variables: x offset from centerline,
         //                      y offset from centerline,
         //                      area of target (0-100),
