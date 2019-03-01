@@ -168,6 +168,8 @@ class Robot : public frc::TimedRobot {
       m_motorRSMaster.ConfigPeakOutputReverse( -1, 10 );
       m_armMotor.ConfigPeakOutputReverse( -1, 10 );
       m_motorLSPTO.ConfigPeakOutputReverse( -1, 10 );
+
+      dumpValve.SetAngle(0);
   }
   void AutonomousInit() override {
   }
@@ -185,9 +187,20 @@ class Robot : public frc::TimedRobot {
 
   }
   void TeleopPeriodic() override {
-    static time_t tStartChooChooTime = 0;
 
     GetAllVariables();
+
+    if ( m_console.GetRawButton(10) ) { //Second missle switch: ptowingDrop, vacuum pump on, dump when limit switch pressed
+        wantEndShift = true;
+        vacMotorOn = true;
+        while (vacLimit.Get())
+        {
+            habContact = true;
+        }
+    } else {
+        wantEndShift = false;
+        vacMotorOn = false;
+    }
 
     if ( m_console.GetRawButtonPressed(2) ) {
         wantHatchOpen = !wantHatchOpen;
@@ -218,9 +231,6 @@ class Robot : public frc::TimedRobot {
         }
     }
      m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() ); // Elevator drive code
-    if ( m_console.GetRawButtonPressed(1) ) {
-        wantEndShift = !wantEndShift;
-    }
     if ( endShift ) {
         if ( !wantEndShift) {
             endShift = false;
@@ -232,6 +242,11 @@ class Robot : public frc::TimedRobot {
             m_ptodropSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Drop Wings, arms, engage PTO
         }
     }
+    if ( habContact ) {
+        dumpValve.SetAngle(90);      //???
+    } else {
+        dumpValve.SetAngle(0);       //???
+    }
     if ( m_console.GetRawButton(7) ) {
         m_armMotor.Set(ControlMode::PercentOutput, 0.4 );
     } else if ( m_console.GetRawButton(8) ) {
@@ -239,10 +254,7 @@ class Robot : public frc::TimedRobot {
     } else {
         m_armMotor.Set(ControlMode::PercentOutput, 0.0 ); 
     }
-    if ( m_console.GetRawButton(5) )  {
-        m_motorVacuum.Set(ControlMode::PercentOutput, 1.0);
-        tStartChooChooTime = std::time(NULL);
-    } else if ( std::time(NULL) < (tStartChooChooTime+30) ) {
+    if ( vacMotorOn )  {
         m_motorVacuum.Set(ControlMode::PercentOutput, 1.0);
     } else {
         m_motorVacuum.Set(ControlMode::PercentOutput, 0.0);
@@ -300,11 +312,13 @@ class Robot : public frc::TimedRobot {
     frc::DoubleSolenoid m_brakeSolenoid{4,5}; //brake on/off
     frc::DoubleSolenoid m_ptodropSolenoid{6,7}; //drops the vac arms AND engages PTO
     frc::AnalogInput DistSensor1{0};
+    frc::DigitalInput vacLimit{1};
+    frc::Servo dumpValve{1};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
     bool wantHatchOpen = true;
     bool hatchOpen = true;
-    bool wantEndShift = true;
-    bool endShift = true;
+    bool wantEndShift = false;
+    bool endShift = false;
     bool wantBrakeEngaged = true;
     bool brakeEngaged = true;
         // limelight variables: x offset from centerline,
@@ -312,6 +326,10 @@ class Robot : public frc::TimedRobot {
         //                      area of target (0-100),
         //                      whether the data is valid
     double limex, limey, limea, limev;
+    int elevatorPosition = 0; //Elevator position. 0 is start config, 1 is hatch low, 2 is hatch medium, 3 is preclimb, 4 is final climb
+    int intakePosition = 0; //4-Bar position. Same numbers as elevator, above
+    bool vacMotorOn = false;
+    bool habContact = false;
 };
 
 #ifndef RUNNING_FRC_TESTS
