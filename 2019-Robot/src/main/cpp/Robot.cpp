@@ -43,7 +43,6 @@ class Robot : public frc::TimedRobot {
         }
      }
   }
-
         // GetAllVariables() retrieves all variable values from sensors,
         // encoders, the limelight, etc.  It should be called at the beginning
         // of every 20-millisecond tick.
@@ -53,7 +52,6 @@ class Robot : public frc::TimedRobot {
     limea = limenttable->GetNumber("ta",0.0);
     limey = limenttable->GetNumber("ty",0.0);
   }
-
         // DriveToTarget() drives autonomously towards a vision target.
         // It returns true if the limelight data is valid, false otherwise.
   bool DriveToTarget()  {
@@ -190,9 +188,44 @@ class Robot : public frc::TimedRobot {
 
     GetAllVariables();
 
-    if ( m_console.GetRawButton(10) ) { //Second missle switch: ptowingDrop, vacuum pump on, dump when limit switch pressed
+    switch( elevarmPosition ) { //at the end of each position move, set wantBrakeEngage = true;
+        default: elevarmPosition = 0;
+        case 0: break;
+        case 1: break;
+        case 2: break;
+        case 3: break;
+        case 4: break;
+        case 5: break;
+    }
+    if ( m_console.GetRawButton(9) ) { //all of this code prevents a missle switch from doing something if the previous switch hasn't been flipped
+        missleSwitchOne = true;
+    } else {
+        missleSwitchOne = false;
+    }
+    if ( m_console.GetRawButton(10) && missleSwitchOne ) {
+        missleSwitchTwo = true;
+    } else {
+        missleSwitchTwo = false;
+    }
+    if ( m_console.GetRawButton(11) && missleSwitchTwo) {
+        missleSwitchThree = true;
+    } else {
+        missleSwitchThree = false;
+    }
+// Endgame code
+    if ( missleSwitchOne ) { //first missle 
+        wantBrakeEngaged = false;
+        if ( !missleSwitchTwo ) { //prevents the elevator from getting ripped from position 3 to 4 every time the if cycles
+            elevarmPosition = 3;
+    }
+    }
+    if ( missleSwitchTwo ) { //Second missle switch: ptowingDrop, vacuum pump on, dump when limit switch pressed
         wantEndShift = true;
         vacMotorOn = true;
+         if ( !missleSwitchThree ) { 
+            wantBrakeEngaged = false;
+            elevarmPosition = 4;
+         }
         while (vacLimit.Get())
         {
             habContact = true;
@@ -201,7 +234,10 @@ class Robot : public frc::TimedRobot {
         wantEndShift = false;
         vacMotorOn = false;
     }
-
+    if ( missleSwitchThree ) {
+        wantBrakeEngaged = false;
+        elevarmPosition = 5;
+    }
     if ( m_console.GetRawButtonPressed(2) ) {
         wantHatchOpen = !wantHatchOpen;
     }
@@ -215,9 +251,6 @@ class Robot : public frc::TimedRobot {
             hatchOpen = true;
             m_hatchSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // hatch open
         }
-    }
-    if ( m_console.GetRawButtonPressed(4) ) {
-        wantBrakeEngaged = !wantBrakeEngaged;
     }
     if ( brakeEngaged ) {
         if ( !wantBrakeEngaged ) {
@@ -321,13 +354,15 @@ class Robot : public frc::TimedRobot {
     bool endShift = false;
     bool wantBrakeEngaged = true;
     bool brakeEngaged = true;
+    bool missleSwitchOne = false;
+    bool missleSwitchTwo = false;
+    bool missleSwitchThree = false;
         // limelight variables: x offset from centerline,
         //                      y offset from centerline,
         //                      area of target (0-100),
         //                      whether the data is valid
     double limex, limey, limea, limev;
-    int elevatorPosition = 0; //Elevator position. 0 is start config, 1 is hatch low, 2 is hatch medium, 3 is preclimb, 4 is final climb
-    int intakePosition = 0; //4-Bar position. Same numbers as elevator, above
+    int elevarmPosition = 0; //Elevator and arm position. 0 is start config, 1 is hatch low, 2 is hatch medium, 3 is preclimb, 4 is hab contact, 5 is final climb
     bool vacMotorOn = false;
     bool habContact = false;
 };
