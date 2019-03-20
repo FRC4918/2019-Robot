@@ -14,6 +14,8 @@
   "wpilib.online": true,
   "files.associations": {
     "ostream": "cpp",
-    "*.inc": "cpp"
+    "*.inc": "cpp",
+    "cmath": "cpp",
+    "complex": "cpp"
   }
 }
