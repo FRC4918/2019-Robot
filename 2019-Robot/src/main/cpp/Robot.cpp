@@ -28,12 +28,12 @@ class Robot : public frc::TimedRobot {
      //         669166-using-the-cameraserver-on-the-roborio
      cs::UsbCamera camera =
                  frc::CameraServer::GetInstance()->StartAutomaticCapture();
-     // camera.SetResolution(640, 480);
+     //camera.SetResolution(640, 480);
      camera.SetResolution(160, 120);
      cs::CvSink cvSink = frc::CameraServer::GetInstance()->GetVideo();
      cs::CvSource outputStreamStd =
               frc::CameraServer::GetInstance()->PutVideo("Gray", 160, 120);
-              frc::CameraServer::GetInstance()->GetVideo();
+              //frc::CameraServer::GetInstance()->GetVideo();
      cv::Mat source;
      cv::Mat output;
      while(true) {
@@ -49,7 +49,7 @@ class Robot : public frc::TimedRobot {
         // GetAllVariables() retrieves all variable values from sensors,
         // encoders, the limelight, etc.  It should be called at the beginning
         // of every 20-millisecond tick.
- /* void GetAllVariables()  {
+void GetAllVariables()  {
     limev = limenttable->GetNumber("tv",0.0);
     limex = limenttable->GetNumber("tx",0.0);
     limea = limenttable->GetNumber("ta",0.0);
@@ -113,8 +113,14 @@ class Robot : public frc::TimedRobot {
       visionThread.detach();
       m_motorLSSlave1.Follow(m_motorLSMaster);
       m_motorRSSlave1.Follow(m_motorRSMaster);
-
+      
       dumpValve.SetAngle(0);
+    wantBrakeEngaged = true;
+    wantHatchOpen = true;
+    wantEndShift = false;
+    wantWingDrop = true;
+    wantServoReset = true;
+    wantVacDrop = true;
 
 // motion magic elevator motor
           /* Configure Sensor Source for Pirmary PID */
@@ -127,7 +133,7 @@ class Robot : public frc::TimedRobot {
      */
     m_motorLSPTO.SetSensorPhase(false);
     m_motorLSPTO.SetInverted(true);
-
+    m_motorRSPTO.SetInverted(false);
     /* Set relevant frame periods to be at least as fast as periodic rate */
     m_motorLSPTO.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, 10);
     m_motorLSPTO.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, 10);
@@ -151,48 +157,49 @@ class Robot : public frc::TimedRobot {
 
 //motion magic arm motor
           /* Configure Sensor Source for Pirmary PID */
-    //m_armMotor.ConfigSelectedFeedbackSensor(FeedbackDevice::CTRE_MagEncoder_Absolute, 0, 10);
+    m_armMotor.ConfigSelectedFeedbackSensor(FeedbackDevice::CTRE_MagEncoder_Relative, 0, 10);
 
     /**
      * Configure Talon SRX Output and Sesnor direction accordingly
      * Invert Motor to have green LEDs when driving Talon Forward / Requesting Postiive Output
      * Phase sensor to have positive increment when driving Talon Forward (Green LED)
      */
-    //m_armMotor.SetSensorPhase(true);
+    m_armMotor.SetSensorPhase(false);//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /* Set relevant frame periods to be at least as fast as periodic rate */
-    //m_armMotor.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, 10);
-    //m_armMotor.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, 10);
+    m_armMotor.SetStatusFramePeriod(StatusFrameEnhanced::Status_13_Base_PIDF0, 10, 10);
+    m_armMotor.SetStatusFramePeriod(StatusFrameEnhanced::Status_10_MotionMagic, 10, 10);
 
     /* Set the peak and nominal outputs */
-    //m_armMotor.ConfigNominalOutputForward(0, 10);
-    //m_armMotor.ConfigNominalOutputReverse(0, 10);
-    //m_armMotor.ConfigPeakOutputForward(1, 10);
-    //m_armMotor.ConfigPeakOutputReverse(-1, 10);
+    m_armMotor.ConfigNominalOutputForward(0, 10);
+    m_armMotor.ConfigNominalOutputReverse(0, 10);
+    m_armMotor.ConfigPeakOutputForward(1, 10);
+    m_armMotor.ConfigPeakOutputReverse(-1, 10);
 
     /* Set Motion Magic gains in slot0 - see documentation */
-    //m_armMotor.SelectProfileSlot(0, 0);
-    //m_armMotor.Config_kF(0, 0.3, 10);
-    //m_armMotor.Config_kP(0, 0.1, 10);
-    //m_armMotor.Config_kI(0, 0.0, 10);
-    //m_armMotor.Config_kD(0, 0.0, 10);
+    m_armMotor.SelectProfileSlot(0, 0);
+    m_armMotor.Config_kF(0, 0.95, 10);
+    m_armMotor.Config_kP(0, 0.385, 10);
+    m_armMotor.Config_kI(0, 0.000006, 10);
+    m_armMotor.Config_kD(0, 0.5, 10);
 
     /* Set acceleration and vcruise velocity - see documentation */
-    //m_armMotor.ConfigMotionCruiseVelocity(1500, 10);
-    //m_armMotor.ConfigMotionAcceleration(1500, 10);
+    m_armMotor.ConfigMotionCruiseVelocity(8192, 10);
+    m_armMotor.ConfigMotionAcceleration(8192, 10);
   }
   void AutonomousInit() override {
     m_motorLSSlave1.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
+    m_motorRSPTO.Follow(m_motorLSPTO);
 
   }
   void AutonomousPeriodic() override {
-   /* GetAllVariables();
+    GetAllVariables();
     if ( ( m_stick.GetRawButton(3) ) &&         // If driver is pressing the
          ( 1  == limev )                )  {    // "drivetotarget" button and
                                                 // the limelight has a target,
         DriveToTarget();         // then autonomously drive towards the target
-    } else { */
+    } else { 
         if ( m_stick.GetTrigger() ) {
             m_shiftingSolenoid.Set(true); // hi gear
         } else {
@@ -201,7 +208,7 @@ class Robot : public frc::TimedRobot {
         if ( endShift ) {
             m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
         }
-    //} 
+    } 
     if ( hatchOpen ) {
         if ( !wantHatchOpen ) {
             hatchOpen = false;
@@ -224,118 +231,56 @@ class Robot : public frc::TimedRobot {
             m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake off
         }
     }
-    if ( m_console.GetRawButton(6) ) {
+    if ( m_console.GetRawButton(3) ) {
             wantBrakeEngaged = false;
-    } else if ( m_console.GetRawButton(7) ) {
+    } else if ( m_console.GetRawButton(4) ) {
             wantBrakeEngaged = true;
     } 
     m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetZ() );
+        if ( m_console.GetRawButton(5) ) { //Starting Position
+        /*4096 ticks/rev * 10 Rotations in either direction */
+        //double targetPos = 0;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( m_console.GetRawButton(8) ) { //Low Hatch Position
+        //double targetPos = -21879;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 4365;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( m_console.GetRawButton(7) ) { //High Hatch Position
+        //double targetPos = -5610;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 749;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( preDropPosition ) { //High enough to smack hab when dropped
+        //double targetPos = -22500;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( postDropPosition ) { //Just go until the limit switch is pressed
+        //double targetPos = 0;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else {
+        /* Percent Output */
+        m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
+        m_armMotor.Set(ControlMode::PercentOutput, m_console.GetX() * .3 );
+    }
   }
   void TeleopInit() override {
     m_motorLSSlave1.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
+    m_motorRSPTO.Follow(m_motorLSPTO);
+    m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse);
+    m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
 
   }
   void TeleopPeriodic() override {
 
     //GetAllVariables();
-
-    /*switch( elevarmPosition ) { //at the end of each position move, set wantBrakeEngage = true;
-        default: wantBrakeEngaged = false; //same as starting configuration (case 0)
-                elevatorTarget = 0.0; //???
-                armTarget = 0.0; //???
-                if ( elevatorEncoder > 10  ) {
-                    motionMagicElevator = true; //NOTE THIS
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }
-                break;
-        case 0: wantBrakeEngaged = false; //starting configuration
-                elevatorTarget = 0.0;
-                armTarget = 0.0;
-                if ( elevatorEncoder > 10 ) {
-                    motionMagicElevator = true;
-                    //m_armMotor.Set(ControlMode::PercentOutput, 1.0 ); 
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                    //m_armMotor.Set(ControlMode::PercentOutput, -1.0 ); 
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }
-                break;
-        case 1: wantBrakeEngaged = false; //Low hatch
-                elevatorTarget = 1.0 ;
-                armTarget = 0.0;
-                if ( elevatorEncoder > 10 ) {
-                    motionMagicElevator = true; 
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }               
-                break;
-        case 2: wantBrakeEngaged = false; //Middle Hatch
-                elevatorTarget = 0.0;
-                armTarget = 0.0;
-                if ( elevatorEncoder > targetPosElev + (targetPosElev*.05) || elevatorEncoder < targetPosElev - (targetPosElev*.05) ) {
-                    motionMagicElevator = true; 
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }                
-                break;
-        case 3: wantBrakeEngaged = false; //Preclimb
-                elevatorTarget = 0.0;
-                armTarget = 0.0;
-                if ( elevatorEncoder > targetPosElev + (targetPosElev*.05) || elevatorEncoder < targetPosElev - (targetPosElev*.05) ) {
-                    motionMagicElevator = true; 
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }                
-                break;
-        case 4: wantBrakeEngaged = false; //The climb
-                elevatorTarget = 0.0;
-                armTarget = 0.0;
-                if ( elevatorEncoder > targetPosElev + (targetPosElev*.05) || elevatorEncoder < targetPosElev - (targetPosElev*.05) ) {
-                    motionMagicElevator = true; 
-                } else {
-                    motionMagicElevator = false;
-                    wantBrakeEngaged = true;
-                }
-                if ( armEncoder > targetPosArm + (targetPosArm*.05) || armEncoder < targetPosArm - (targetPosArm*.05) ) {
-                    motionMagicArm = true; 
-                } else {
-                    motionMagicArm = false;
-                }                
-                break;
-                
-    }*/
-    
+    cout << armEncoder << endl;
     if ( elevatorBotPosition ) { //zeroes the elevator encoder if lower limit switch is pressed
         m_motorLSPTO.SetSelectedSensorPosition(0, 0, 10);
     }
@@ -345,37 +290,47 @@ class Robot : public frc::TimedRobot {
         elevatorBotPosition = true;
     }
     
-//Peform Motion Magic when motionMagicElevator/Arm = true, else run Percent Output for elevator control and arm position hold
-    /*if ( motionMagicElevator ) { //4096 ticks/rev
-        m_motorLSPTO.Set(ControlMode::MotionMagic, targetPosElev);
-    } else {
-        m_motorLSPTO.Set( ControlMode::PercentOutput, m_console.GetY() );
+    if ( armTopPosition ) { //zeroes the arm encoder if upper limit switch is pressed
+        m_armMotor.SetSelectedSensorPosition(0, 0, 10);
     }
-    if ( motionMagicArm ) { //4096 ticks/rev
-        m_armMotor.Set(ControlMode::MotionMagic, targetPosElev);
+    if ( armHighLimit.Get() ) {
+        armTopPosition = false;
     } else {
-        m_armMotor.Set( ControlMode::PercentOutput, m_console.GetX() );
-    }*/
-    if ( m_console.GetRawButton(5) ) {
+        armTopPosition = true;
+    }
+
+
+    if ( m_console.GetRawButton(5) ) { //Starting Position
         /*4096 ticks/rev * 10 Rotations in either direction */
-        double targetPos = 0 * 4096;
-        m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
-    } else if ( m_console.GetRawButton(4) ) {
-        /*4096 ticks/rev * 10 Rotations in either direction */
-        double targetPos = -1 * 4096;
-        m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
-    } else if ( m_console.GetRawButton(3) ) {
-        /*4096 ticks/rev * 10 Rotations in either direction */
-        double targetPos = -4 * 4096;
-        m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        //double targetPos = 0;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( m_console.GetRawButton(8) ) { //Low Hatch Position
+        //double targetPos = -21879;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 4365;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( m_console.GetRawButton(7) ) { //High Hatch Position
+        //double targetPos = -5610;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 749;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( preDropPosition ) { //High enough to smack hab when dropped
+        //double targetPos = -22500;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( postDropPosition ) { //Just go until the limit switch is pressed
+        //double targetPos = 0;
+        //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
+        double armTargetPos = 0;
+        m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
     } else {
         /* Percent Output */
-        m_motorLSPTO.Set(ControlMode::PercentOutput, m_console.GetY() * .6 );
+        m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
+        m_armMotor.Set(ControlMode::PercentOutput, m_console.GetX() * .3 );
     }
-
-
-
-
 
 
 
@@ -396,24 +351,36 @@ class Robot : public frc::TimedRobot {
         missleSwitchThree = false;
     }
 // Endgame code
-    if ( missleSwitchOne ) { //first missle 
-        if ( !missleSwitchTwo ) { //prevents the elevator from getting ripped from position 3 to 4 every time the if cycles
-            elevarmPosition = 3;
-        }
-    }
-    if ( missleSwitchTwo ) { //Second missle switch: ptowingDrop, vacuum pump on, dump when limit switch pressed
-        vacMotorOn = true;
-        wantEndShift = true;
+    /*if ( missleSwitchOne && missleSwitchTwo ) { //first missle: elevator high position, PTO engage
+        preDropPosition = false;
+    } else if ( missleSwitchOne) {
+        preDropPosition = true;
     } else {
-        wantEndShift = false;
+        preDropPosition = false;
+    }
+    */
+    if ( missleSwitchOne ) {//First Missle Switch: turn vacuum motor on
+        vacMotorOn = true;
+    } else {
         vacMotorOn = false;
     }
-    if ( missleSwitchThree ) {
-        elevarmPosition = 4;
-     //   if (vacLimit.Get()) {
-      //      habContact = true;
-     //   }
+    if ( missleSwitchTwo ) { //Second missle switch: arm drop, PTO drop
+        wantEndShift = true;
+        wantVacDrop = true;
+    } else {
+        wantEndShift = false;
+        wantVacDrop = false;
     }
+    if ( missleSwitchThree ) {
+        //postDropPosition = true;
+        wantServoReset = true;
+        elevatorPower = 1;
+    } else {
+        //postDropPosition = false;
+        wantServoReset = false;
+        elevatorPower = 0.8;
+    }
+    
 //hatch, brakecode
     if ( m_console.GetRawButtonPressed(1) ) {
         wantHatchOpen = true;
@@ -431,62 +398,75 @@ class Robot : public frc::TimedRobot {
             m_hatchSolenoid.Set(true); // hatch open
         }
     }
-    //servo
-    /*if ( m_console.GetRawButtonPressed(3) ) {
-        wantServoReset = true;
-    } else ( m_console.GetRawButtonPressed(4) ); {
-        wantServoReset = false;
+    if ( m_console.GetRawButton(4) ) {
+        wantBrakeEngaged = false;
+    } else if ( m_console.GetRawButton(3) ) {
+        wantBrakeEngaged = true;
     }
-    if ( servoReset ) {
-        if ( !wantServoReset ) {
-            servoReset = false;
-            dumpValve.Set(1);
-        }
-    } else {
-        if ( wantServoReset ) {
-            servoReset = true;
-            dumpValve.Set(0);
-        }
-    } */
     if ( brakeEngaged ) {
         if ( !wantBrakeEngaged ) {
             brakeEngaged = false;
-            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Brake off
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake on
         }
     } else {
         if ( wantBrakeEngaged ) {
             brakeEngaged = true;
-            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake on
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Brake off
         }
     }
-    if ( m_console.GetRawButton(6) ) {
-            wantBrakeEngaged = false;
-    } else if ( m_console.GetRawButton(7) ) {
-            wantBrakeEngaged = true;
-    }
-    //fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
-    if ( m_console.GetRawButton(3) ) {
-        elevarmPosition = 1;
-    } else if ( m_console.GetRawButton(4) ) {
-        elevarmPosition = 2;
-    } else if ( m_console.GetRawButton(5) ) {
-        elevarmPosition = 0;
+//wings
+    if ( m_console.GetRawButton(12) ) {
+        wantWingDrop = true;
+    } else {
+        wantWingDrop = false;
+        
     }
 //endgame shift/servo code
     if ( endShift ) {
         if ( !wantEndShift) {
             endShift = false;
-            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Reset Wing piston, arm piston, disengage PTO
+            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Disengage PTO
         }
     } else {
         if ( wantEndShift ) {
             endShift = true;
-            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Drop Wings, arms, engage PTO
+            m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Engage PTO
         }
     }
-    //if ( habContact ) {
-     //   dumpValve.Set(1.0);     
-  //  }
+    if ( servoReset ) {
+        if ( !wantServoReset ) {
+            servoReset = false;
+            dumpValve.Set(-1);
+        }
+    } else {
+        if ( wantServoReset ) {
+            servoReset = true;
+            dumpValve.Set(1);
+        }
+    }
+    
+    if ( vacDrop ) {
+        if ( !wantVacDrop) {
+            vacDrop = false;
+            m_dropSolenoid.Set(false); // Drop vac arms and pad
+        }
+    } else {
+        if ( wantVacDrop ) {
+            vacDrop = true;
+            m_dropSolenoid.Set(true); // Reset drop piston
+        }
+    }
+    if ( wingDrop ) {
+        if ( !wantWingDrop) {
+            wingDrop = false;
+            m_wingSolenoid.Set(false); // Drop wings
+        }
+    } else {
+        if ( wantWingDrop ) {
+            wingDrop = true;
+            m_wingSolenoid.Set(true); // Reset wing drop piston
+        }
+    }
     m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetZ() );
 //vacuum motor code
     if ( vacMotorOn )  {
@@ -495,11 +475,11 @@ class Robot : public frc::TimedRobot {
         m_motorVacuum.Set(ControlMode::PercentOutput, 0.0);
     }
 #ifdef DRIVEMETHODJOYSTICK
-   /* if ( ( m_stick.GetRawButton(3) ) &&         // If driver is pressing the
+    if ( ( m_stick.GetRawButton(3) ) &&         // If driver is pressing the
          ( 1  == limev )                )  {    // "drivetotarget" button and
                                                 // the limelight has a target,
         DriveToTarget();         // then autonomously drive towards the target
-    } else { */
+    } else {
         if ( m_stick.GetTrigger() ) {
             m_shiftingSolenoid.Set(true); // hi gear
         } else {
@@ -508,19 +488,7 @@ class Robot : public frc::TimedRobot {
         if ( endShift ) {
             m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
         }
-
-/*          else if ( m_stick.GetZ() < 0 ) {
-            m_drive.CurvatureDrive( m_stick.GetY(),
-            powl( fabs(m_stick.GetZ()), m_stick.GetThrottle()+2.0 ),
-            m_stick.GetTop() );
-        } else {
-            m_drive.CurvatureDrive( m_stick.GetY(),
-            -powl( fabs(m_stick.GetZ()), m_stick.GetThrottle()+2.0 ),
-            m_stick.GetTop() );
-        }
-        
-    }  
-    */
+    }
 #else  
     if ( m_xbox.GetBumper(frc::GenericHID::kLeftHand) ) {
         m_shiftingSolenoid.Set(true); // hi gear
@@ -541,16 +509,18 @@ class Robot : public frc::TimedRobot {
     WPI_VictorSPX m_motorRSSlave1{1};
     WPI_VictorSPX m_motorLSSlave1{14};
     WPI_VictorSPX m_motorVacuum{8};
+    WPI_VictorSPX m_motorRSPTO{7};
     int iAutoCount;
     int elevarmPosition = 0; //Elevator and arm position. 0 is start config, 1 is hatch low, 2 is hatch medium, 3 is preclimb, 4 is hab contact, 5 is final climb
     int armEncoder = m_armMotor.GetSelectedSensorPosition();
+    float elevatorPower = 0.8;
     frc::Joystick m_stick{0};
     frc::Joystick m_console{1};
     frc::DifferentialDrive m_drive{ m_motorLSMaster, m_motorRSMaster };
     frc::Compressor m_compressor{0};
-    frc::PowerDistributionPanel pdp{0};
+    //frc::PowerDistributionPanel pdp{0};
     //frc::DoubleSolenoid m_shiftingSolenoid{0,1}; //shifters
-    //frc::DoubleSolenoid m_hatchSolenoid{3,2}; //grab hatch in/out
+    //frc::DoubleSolenoid m_hatchSolenoid{2,3}; //grab hatch in/out
     //frc::DoubleSolenoid m_brakeSolenoid{4,5}; //brake on/off
     //frc::DoubleSolenoid m_ptodropSolenoid{6,7}; //drops the vac arms AND engages PTO
     frc::DoubleSolenoid m_ptoSolenoid{0,1};
@@ -563,16 +533,20 @@ class Robot : public frc::TimedRobot {
     frc::DigitalInput vacLimit{1};
     frc::DigitalInput elevatorLowLimit{2};
     frc::DigitalInput armHighLimit{3};
-    frc::Servo dumpValve{0};
+    frc::Servo dumpValve{9};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
-    bool wantHatchOpen = true;
     bool hatchOpen = true;
-    bool wantEndShift = false;
     bool endShift = false;
     bool wantBrakeEngaged = true;
-    bool servoReset = true;
+    bool wantHatchOpen = true;
+    bool wantEndShift = false;
+    bool wantWingDrop = true;
     bool wantServoReset = true;
+    bool wantVacDrop = true;
     bool brakeEngaged = true;
+    bool servoReset = true;
+    bool vacDrop = true;
+    bool wingDrop = true;
     bool missleSwitchOne = false;
     bool missleSwitchTwo = false;
     bool missleSwitchThree = false;
@@ -582,6 +556,8 @@ class Robot : public frc::TimedRobot {
     bool elevatorBotPosition = false;
     bool motionMagicElevator = false;
     bool motionMagicArm = false;
+    bool preDropPosition = false;
+    bool postDropPosition = false;
         // limelight variables: x offset from centerline,
         //                      y offset from centerline,
         //                      area of target (0-100),
