@@ -131,7 +131,7 @@ void GetAllVariables()  {
      * Invert Motor to have green LEDs when driving Talon Forward / Requesting Postiive Output
      * Phase sensor to have positive increment when driving Talon Forward (Green LED)
      */
-    m_motorLSPTO.SetSensorPhase(false);
+    m_motorLSPTO.SetSensorPhase(true); //inverts encoder value positive/negative
     m_motorLSPTO.SetInverted(true);
     m_motorRSPTO.SetInverted(false);
     /* Set relevant frame periods to be at least as fast as periodic rate */
@@ -185,12 +185,14 @@ void GetAllVariables()  {
 
     /* Set acceleration and vcruise velocity - see documentation */
     m_armMotor.ConfigMotionCruiseVelocity(8192, 10);
-    m_armMotor.ConfigMotionAcceleration(8192, 10);
+    m_armMotor.ConfigMotionAcceleration(4000, 10);
   }
   void AutonomousInit() override {
     m_motorLSSlave1.Follow(m_motorLSMaster);
     m_motorRSSlave1.Follow(m_motorRSMaster);
     m_motorRSPTO.Follow(m_motorLSPTO);
+    wantBrakeEngaged = true;
+    brakeEngaged = false;
 
   }
   void AutonomousPeriodic() override {
@@ -236,7 +238,7 @@ void GetAllVariables()  {
     } else if ( m_console.GetRawButton(4) ) {
             wantBrakeEngaged = true;
     } 
-    m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetZ() );
+    m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetX() );//////////////////////////////////////////////////////////////////////////////////////
         if ( m_console.GetRawButton(5) ) { //Starting Position
         /*4096 ticks/rev * 10 Rotations in either direction */
         //double targetPos = 0;
@@ -266,6 +268,7 @@ void GetAllVariables()  {
     } else {
         /* Percent Output */
         m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
+        m_motorRSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
         m_armMotor.Set(ControlMode::PercentOutput, m_console.GetX() * .3 );
     }
   }
@@ -275,31 +278,32 @@ void GetAllVariables()  {
     m_motorRSPTO.Follow(m_motorLSPTO);
     m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse);
     m_ptoSolenoid.Set(frc::DoubleSolenoid::Value::kForward);
+    wantBrakeEngaged = true;
+    brakeEngaged = false;
 
   }
   void TeleopPeriodic() override {
 
     //GetAllVariables();
-    cout << armEncoder << endl;
     if ( elevatorBotPosition ) { //zeroes the elevator encoder if lower limit switch is pressed
         m_motorLSPTO.SetSelectedSensorPosition(0, 0, 10);
     }
-    if ( elevatorLowLimit.Get() ) {
-        elevatorBotPosition = false;
-    } else {
+    if ( !elevatorAboveLowLimit.Get() ) {
         elevatorBotPosition = true;
+    } else {
+        elevatorBotPosition = false;
     }
     
     if ( armTopPosition ) { //zeroes the arm encoder if upper limit switch is pressed
         m_armMotor.SetSelectedSensorPosition(0, 0, 10);
     }
     if ( armHighLimit.Get() ) {
-        armTopPosition = false;
-    } else {
         armTopPosition = true;
+    } else {
+        armTopPosition = false;
     }
 
-
+//IMPORTANT UNIT LOCATIONS: Starting configuration is at 10000u, 
     if ( m_console.GetRawButton(5) ) { //Starting Position
         /*4096 ticks/rev * 10 Rotations in either direction */
         //double targetPos = 0;
@@ -309,7 +313,7 @@ void GetAllVariables()  {
     } else if ( m_console.GetRawButton(8) ) { //Low Hatch Position
         //double targetPos = -21879;
         //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
-        double armTargetPos = 4365;
+        double armTargetPos = 3000;
         m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
     } else if ( m_console.GetRawButton(7) ) { //High Hatch Position
         //double targetPos = -5610;
@@ -326,9 +330,15 @@ void GetAllVariables()  {
         //m_motorLSPTO.Set(ControlMode::MotionMagic, targetPos);
         double armTargetPos = 0;
         m_armMotor.Set(ControlMode::MotionMagic, armTargetPos);
+    } else if ( endClimb ) {
+        m_motorLSPTO.Set( ControlMode::PercentOutput, -0.9 );
+        m_motorRSPTO.Set( ControlMode::PercentOutput, -0.9 );
     } else {
         /* Percent Output */
-        m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
+        if ( elevatorAboveLowLimit.Get() || m_console.GetY() < 0 ) {
+            m_motorLSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower );
+            m_motorRSPTO.Set(ControlMode::PercentOutput, -m_console.GetY() * elevatorPower); 
+        }
         m_armMotor.Set(ControlMode::PercentOutput, m_console.GetX() * .3 );
     }
 
@@ -359,26 +369,25 @@ void GetAllVariables()  {
         preDropPosition = false;
     }
     */
-    if ( missleSwitchOne ) {//First Missle Switch: turn vacuum motor on
+    if ( missleSwitchOne ) {//First Missle Switch: turn vacuum motor on, pto engage, vacuum on, arm drop
         vacMotorOn = true;
-    } else {
-        vacMotorOn = false;
-    }
-    if ( missleSwitchTwo ) { //Second missle switch: arm drop, PTO drop
         wantEndShift = true;
         wantVacDrop = true;
     } else {
+        vacMotorOn = false;
         wantEndShift = false;
         wantVacDrop = false;
     }
-    if ( missleSwitchThree ) {
-        //postDropPosition = true;
+    if ( missleSwitchTwo ) { //Second missle switch: servo engage
         wantServoReset = true;
-        elevatorPower = 1;
+    } else {
+        wantServoReset = false;
+    }
+    if ( missleSwitchThree && !elevatorBotPosition ) { // if the third switch is thrown AND the elevator is not at the bottom, move down
+        endClimb = true;    
     } else {
         //postDropPosition = false;
-        wantServoReset = false;
-        elevatorPower = 0.8;
+        endClimb = false;
     }
     
 //hatch, brakecode
@@ -406,12 +415,14 @@ void GetAllVariables()  {
     if ( brakeEngaged ) {
         if ( !wantBrakeEngaged ) {
             brakeEngaged = false;
-            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake on
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kForward); // Brake off
+            cout << "Brake off" << endl;
         }
     } else {
         if ( wantBrakeEngaged ) {
             brakeEngaged = true;
-            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Brake off
+            m_brakeSolenoid.Set(frc::DoubleSolenoid::Value::kReverse); // Brake on
+            cout << "Brake on" << endl;
         }
     }
 //wings
@@ -467,7 +478,7 @@ void GetAllVariables()  {
             m_wingSolenoid.Set(true); // Reset wing drop piston
         }
     }
-    m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetZ() );
+    m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetX() );/////////////////////////////////////////////////////////////////////////////////
 //vacuum motor code
     if ( vacMotorOn )  {
         m_motorVacuum.Set(ControlMode::PercentOutput, 0.5);
@@ -509,7 +520,7 @@ void GetAllVariables()  {
     WPI_VictorSPX m_motorRSSlave1{1};
     WPI_VictorSPX m_motorLSSlave1{14};
     WPI_VictorSPX m_motorVacuum{8};
-    WPI_VictorSPX m_motorRSPTO{7};
+    WPI_VictorSPX m_motorRSPTO{12};
     int iAutoCount;
     int elevarmPosition = 0; //Elevator and arm position. 0 is start config, 1 is hatch low, 2 is hatch medium, 3 is preclimb, 4 is hab contact, 5 is final climb
     int armEncoder = m_armMotor.GetSelectedSensorPosition();
@@ -531,19 +542,19 @@ void GetAllVariables()  {
     frc::Solenoid m_wingSolenoid{7};
     frc::AnalogInput DistSensor1{0};
     frc::DigitalInput vacLimit{1};
-    frc::DigitalInput elevatorLowLimit{2};
+    frc::DigitalInput elevatorAboveLowLimit{9};
     frc::DigitalInput armHighLimit{3};
     frc::Servo dumpValve{9};
     std::shared_ptr<NetworkTable> limenttable = nt::NetworkTableInstance::GetDefault().GetTable("limelight");
     bool hatchOpen = true;
     bool endShift = false;
-    bool wantBrakeEngaged = true;
     bool wantHatchOpen = true;
     bool wantEndShift = false;
     bool wantWingDrop = true;
     bool wantServoReset = true;
     bool wantVacDrop = true;
-    bool brakeEngaged = true;
+    bool wantBrakeEngaged = true;
+    bool brakeEngaged = false;
     bool servoReset = true;
     bool vacDrop = true;
     bool wingDrop = true;
@@ -558,6 +569,7 @@ void GetAllVariables()  {
     bool motionMagicArm = false;
     bool preDropPosition = false;
     bool postDropPosition = false;
+    bool endClimb = false;
         // limelight variables: x offset from centerline,
         //                      y offset from centerline,
         //                      area of target (0-100),
