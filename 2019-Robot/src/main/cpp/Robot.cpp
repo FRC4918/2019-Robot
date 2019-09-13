@@ -1,5 +1,6 @@
 /*
  Our 2019 Robot code. Written by Max Morningstar and [Other contributors here] with guidance from Jeff Gibbons
+ RIP Max, we love and miss him
  */
 
 
