@@ -369,9 +369,9 @@ void GetAllVariables()  {
         preDropPosition = false;
     }
     */
-    if ( missleSwitchOne ) {//First Missle Switch: turn vacuum motor on, pto engage, vacuum on, arm drop
+    if ( missleSwitchOne ) {//First Missle Switch: turn vacuum motor on, pto engage, arm drop
         vacMotorOn = true;
-        wantEndShift = true;
+        wantEndShift = true;  // Changed to false to test cimb 09/13/19
         wantVacDrop = true;
     } else {
         vacMotorOn = false;
