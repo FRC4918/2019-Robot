@@ -211,7 +211,7 @@ void GetAllVariables()  {
             m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
         }
     } 
-    //hatchgrab changed 9/14/19
+    //hatchgrab changed 9/14/2019
      if ( m_console.GetRawButtonPressed(1) ) {
         wantHatchOpen = true;
     } else if ( m_console.GetRawButtonPressed(2) ) {
