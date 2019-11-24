@@ -211,7 +211,7 @@ void GetAllVariables()  {
             m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
         }
     } 
-    //hatchgrab changed 9/14/2019
+    //hatchgrab changed 9/14/2019 
      if ( m_console.GetRawButtonPressed(1) ) {
         wantHatchOpen = true;
     } else if ( m_console.GetRawButtonPressed(2) ) {
@@ -406,11 +406,13 @@ void GetAllVariables()  {
         if ( !wantHatchOpen ) {
             hatchOpen = false;
             m_hatchSolenoid.Set(false); // hatch close
+            cout << "hatch close" << endl;
         }
     } else {
         if ( wantHatchOpen ) {
             hatchOpen = true;
             m_hatchSolenoid.Set(true); // hatch open
+            cout << "hatch open" << endl;
         }
     }
     if ( m_console.GetRawButton(4) ) {
