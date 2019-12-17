@@ -124,6 +124,13 @@ class Robot : public frc::TimedRobot {
       m_motorLSSlave1.Follow(m_motorLSMaster);
       m_motorRSSlave1.Follow(m_motorRSMaster);
 
+                   /* The rest of the code in this function is here only as */
+                   /* a set of examples, to show some of the settings that  */
+                   /* can be configured.  These examples configure only the */
+                   /* LSMaster motor, so once a final set of configuration  */
+                   /* is decided upon, code should be added to set both the */
+                   /* LSMaster and RSMaster motors.                         */
+          
           /* Configure Sensor Source for Primary PID */
       m_motorLSMaster.ConfigSelectedFeedbackSensor(
                             FeedbackDevice::CTRE_MagEncoder_Relative, 0, 10 );
@@ -161,6 +168,23 @@ class Robot : public frc::TimedRobot {
          /* Set acceleration and cruise velocity - see documentation */
       m_motorLSMaster.ConfigMotionCruiseVelocity( 1500, 10 );
       m_motorLSMaster.ConfigMotionAcceleration(   1500, 10 );
+
+      m_motorLSMaster.ConfigClosedloopRamp( 1.0, 10 ); // 1 second
+      m_motorLSMaster.ConfigPeakCurrentLimit( 50, 10 );  // 50 Amps
+      m_motorLSMaster.ConfigPeakCurrentDuration( 200, 10 );  // 200 msecs
+      m_motorLSMaster.ConfigContinuousCurrentLimit( 40, 10 );  // 40 Amps
+      m_motorLSMaster.EnableCurrentLimit( true );
+    
+                /* To configure closed-loop control, we will probably need  */
+                /* calls similar to one of these:                           */
+                      /* drive motor directly according to joystick Z (yaw) */
+                      /* (no PID)                                           */
+      // m_motorLSMaster.Set(ControlMode::PercentOutput, m_stick.GetZ());
+                      /* turn the motor at a specified speed,               */
+                      /* using the Talon PID controller in Velocity mode    */
+      // m_motorLSMaster.Set( ControlMode::Velocity,
+                              750 );    // 750 ticks per 100 milliseconds
+    
    }
 
    void AutonomousInit() override {
@@ -178,25 +202,12 @@ class Robot : public frc::TimedRobot {
                                                 // the limelight has a target,
          DriveToTarget();        // then autonomously drive towards the target
       } else { 
-         if ( m_stick.GetTrigger() ) {
-            // m_shiftingSolenoid.Set(  true ); // hi gear
-         } else {
-            // m_shiftingSolenoid.Set( false ); // lo gear
-         }
-         // m_drive.CurvatureDrive( m_stick.GetY(), 0, 0 );
-      } 
-
-                                       /* This is an example of how to read */
-                                       /* a button on the console.          */
-      if ( m_console.GetRawButton(3) ) {
-            // wantBrakeEngaged = false;
-      } else if ( m_console.GetRawButton(4) ) {
-            // wantBrakeEngaged = true;
-      } 
+         // m_drive.CurvatureDrive( m_stick.GetY(), m_stick.GetZ(), 0 );
                                     /* Drive the robot according to the     */
                                     /* commanded Y and X joystick position. */
-      m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetX() );
-
+         m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetX() );
+      }
+    
          /* We could drive the motors directly instead, with Percent Output. */
          //  m_motorLSMaster.Set( ControlMode::PercentOutput,
          //                       -m_console.GetY() * drivePowerFactor );
@@ -227,8 +238,8 @@ class Robot : public frc::TimedRobot {
                                     /* See AutonomousInit() for examples of */
                                     /* other ways we could drive the robot. */
       m_drive.ArcadeDrive( m_stick.GetY(), -m_stick.GetX() );
-
    }
+ 
  private:
 
          // Note for future: Need to add a gyro here.
