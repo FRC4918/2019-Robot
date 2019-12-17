@@ -124,6 +124,26 @@ class Robot : public frc::TimedRobot {
       m_motorLSSlave1.Follow(m_motorLSMaster);
       m_motorRSSlave1.Follow(m_motorRSMaster);
 
+              /* Set limit switch behavior (switches are normally-open, and */
+              /* when closed the motor will not go in that direction).      */ 
+      m_motorLSMaster.ConfigForwardLimitSwitchSource( 
+		     LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+		     LimitSwitchNormal::LimitSwitchNormal_NormallyOpen, 0 );
+      m_motorRSMaster.ConfigForwardLimitSwitchSource( 
+		     LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+		     LimitSwitchNormal::LimitSwitchNormal_NormallyOpen, 0 );
+      m_motorLSMaster.ConfigReverseLimitSwitchSource( 
+		     LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+		     LimitSwitchNormal::LimitSwitchNormal_NormallyOpen, 0 );
+      m_motorRSMaster.ConfigReverseLimitSwitchSource( 
+		     LimitSwitchSource::LimitSwitchSource_FeedbackConnector,
+		     LimitSwitchNormal::LimitSwitchNormal_NormallyOpen, 0 );
+
+                            // NOTE: OverrideLimitSwitchesEnable( false) would
+			    // disable the limit switch features
+      m_motorLSMaster.OverrideLimitSwitchesEnable( true );
+      m_motorRSMaster.OverrideLimitSwitchesEnable( true );
+
                    /* The rest of the code in this function is here only as */
                    /* a set of examples, to show some of the settings that  */
                    /* can be configured.  These examples configure only the */
@@ -183,7 +203,7 @@ class Robot : public frc::TimedRobot {
                       /* turn the motor at a specified speed,               */
                       /* using the Talon PID controller in Velocity mode    */
       // m_motorLSMaster.Set( ControlMode::Velocity,
-                              750 );    // 750 ticks per 100 milliseconds
+      //                      750 );    // 750 ticks per 100 milliseconds
     
    }
 
